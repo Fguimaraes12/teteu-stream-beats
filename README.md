@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# teteu-beats
 
-## Getting Started
+**Plataforma de streaming pessoal dos beats do Teteu.**
 
-First, run the development server:
+Plataforma de streaming para ouvir os beats do Teteu direto no browser, sem download, sem cadastro.
+
+---
+
+## Stack
+
+- **Next.js 14** + TypeScript
+- **Supabase** — banco de dados PostgreSQL + armazenamento dos arquivos de áudio
+
+## Rodando localmente
 
 ```bash
+git clone https://github.com/seuusuario/teteu-beats.git
+cd teteu-beats
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Crie um arquivo `.env.local` na raiz do projeto:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=sua_url_do_supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Como funciona
 
-## Learn More
+Os beats são armazenados como arquivos MP3 no **Supabase Storage** e seus metadados (título, artista, gênero) em uma tabela **PostgreSQL**. O frontend busca a lista e faz o stream do áudio direto pela URL do storage — sem necessidade de download.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Feito por Fguimaraes12
