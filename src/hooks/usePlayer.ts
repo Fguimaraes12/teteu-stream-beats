@@ -1,37 +1,125 @@
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Song } from "../types/music";
+import { useEffect, useRef, useState, useCallback } from "react";
+import type { SongWithAlbum } from "../types/music";
 
 export function usePlayer() {
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [toggleLoop, setToggleLoop] = useState<boolean>(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const queueRef = useRef<SongWithAlbum[]>([]);
+
+  const [currentSong, setCurrentSong] = useState<SongWithAlbum | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isLooping, setIsLooping] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from("songs")
-      .select("*")
-      .then(({ data }) => {
-        if (data) setSongs(data);
+    const audio = new Audio();
+    audioRef.current = audio;
+
+    audio.addEventListener("timeupdate", () => {
+      setElapsed(audio.currentTime);
+      setProgress(
+        audio.duration ? (audio.currentTime / audio.duration) * 100 : 0,
+      );
+    });
+    audio.addEventListener("loadedmetadata", () => setDuration(audio.duration));
+    audio.addEventListener("play", () => setIsPlaying(true));
+    audio.addEventListener("pause", () => setIsPlaying(false));
+    audio.addEventListener("ended", () => {
+      if (audio.loop) return;
+      setCurrentSong((prev) => {
+        const queue = queueRef.current;
+        if (!prev || queue.length === 0) return prev;
+        const idx = queue.findIndex((s) => s.id === prev.id);
+        const next = queue[(idx + 1) % queue.length];
+        audio.src = next.url ?? "";
+        audio.play();
+        return next;
       });
+    });
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+    };
   }, []);
 
-  function play(song: Song) {
-    if (!audioRef.current || !song.url) return;
-    audioRef.current.src = song.url;
-    audioRef.current.play();
-  }
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.loop = isLooping;
+  }, [isLooping]);
 
-  function LoopMusic() {
-    const currentTime = audioRef.current?.currentTime;
-    const duration = audioRef.current?.duration;
-
-    if (toggleLoop) {
-      if (currentTime === duration) {
-        audioRef.current?.play();
+  const playSong = useCallback(
+    (song: SongWithAlbum, queue: SongWithAlbum[]) => {
+      queueRef.current = queue;
+      setCurrentSong(song);
+      setElapsed(0);
+      setProgress(0);
+      const audio = audioRef.current;
+      if (audio && song.url) {
+        audio.src = song.url;
+        audio.play();
       }
-    }
-  }
+    },
+    [],
+  );
 
-  return { play, LoopMusic, songs, audioRef, setToggleLoop, toggleLoop };
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.paused ? audio.play() : audio.pause();
+  }, []);
+
+  const playNext = useCallback(() => {
+    const audio = audioRef.current;
+    setCurrentSong((prev) => {
+      const queue = queueRef.current;
+      if (!prev || queue.length === 0) return prev;
+      const idx = queue.findIndex((s) => s.id === prev.id);
+      const next = queue[(idx + 1) % queue.length];
+      if (audio && next.url) {
+        audio.src = next.url;
+        audio.play();
+      }
+      return next;
+    });
+  }, []);
+
+  const playPrev = useCallback(() => {
+    const audio = audioRef.current;
+    setCurrentSong((prev) => {
+      const queue = queueRef.current;
+      if (!prev || queue.length === 0) return prev;
+      const idx = queue.findIndex((s) => s.id === prev.id);
+      const prevSong = queue[(idx - 1 + queue.length) % queue.length];
+      if (audio && prevSong.url) {
+        audio.src = prevSong.url;
+        audio.play();
+      }
+      return prevSong;
+    });
+  }, []);
+
+  const toggleLoop = useCallback(() => setIsLooping((v) => !v), []);
+
+  const seek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  }, []);
+
+  return {
+    currentSong,
+    isPlaying,
+    progress,
+    elapsed,
+    duration,
+    isLooping,
+    playSong,
+    togglePlay,
+    playNext,
+    playPrev,
+    toggleLoop,
+    seek,
+  };
 }
